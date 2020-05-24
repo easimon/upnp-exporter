@@ -1,0 +1,81 @@
+name: Docker container build
+on: push
+
+env:
+  DOCKER_REGISTRY: docker.pkg.github.com
+  DOCKER_NAME: docker.pkg.github.com/${{ github.repository }}/upnp-exporter
+
+jobs:
+  build:
+    name: Build and publish Docker container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@master
+
+      - name: Use branch name as Docker tag
+        if: startsWith(github.ref, 'refs/heads')
+        run: |
+          echo "::set-env name=DOCKER_TAG::$(echo ${GITHUB_REF} | sed -e "s/refs\/heads\///g" | sed -e "s/\//./g")"
+
+      - name: Use 'latest' as Docker tag
+        if: github.ref == 'refs/heads/master'
+        run: |
+          echo "::set-env name=DOCKER_TAG::latest"
+
+      - name: Use tag name as Docker tag
+        if: startsWith(github.ref, 'refs/tags')
+        run: |
+          echo "::set-env name=DOCKER_TAG::$(echo ${GITHUB_REF} | sed -e "s/refs\/tags\///g")"
+
+      - name: Print docker image and tag name
+        run: |
+          echo "Continuing to build ${DOCKER_NAME}:${DOCKER_TAG}"
+
+      - name: Log in to Docker Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${DOCKER_REGISTRY} -u ${{ github.actor }} --password-stdin
+
+      - name: Build the Docker builder image
+        run: |
+          docker pull ${DOCKER_NAME}-builder:latest || echo "No previous 'latest' builder image found"
+          docker pull ${DOCKER_NAME}-builder:${DOCKER_TAG} || echo "No previous '${DOCKER_TAG}' builder image found"
+          docker build \
+            --cache-from=${DOCKER_NAME}-builder:latest \
+            --cache-from=${DOCKER_NAME}-builder:${DOCKER_TAG} \
+            --target builder \
+            -t ${DOCKER_NAME}-builder:${DOCKER_TAG} \
+            .
+          docker push ${DOCKER_NAME}-builder:${DOCKER_TAG}
+
+      - name: Build the Docker test image
+        run: |
+          docker pull ${DOCKER_NAME}-builder:${DOCKER_TAG} || echo "No builder image found"
+          docker pull ${DOCKER_NAME}-test:latest || echo "No previous 'latest' test image found"
+          docker pull ${DOCKER_NAME}-test:${DOCKER_TAG} || echo "No previous '${DOCKER_TAG}' test image found"
+          docker build \
+            --cache-from=${DOCKER_NAME}-builder:${DOCKER_TAG} \
+            --cache-from=${DOCKER_NAME}-test:latest \
+            --cache-from=${DOCKER_NAME}-test:${DOCKER_TAG} \
+            --target test \
+            -t ${DOCKER_NAME}-test:${DOCKER_TAG} \
+            .
+          docker push ${DOCKER_NAME}-test:${DOCKER_TAG}
+
+      - name: Build the Docker image
+        run: |
+          docker pull ${DOCKER_NAME}-builder:${DOCKER_TAG} || echo "No builder image found"
+          docker pull ${DOCKER_NAME}-test:${DOCKER_TAG} || echo "No test image found"
+          docker pull ${DOCKER_NAME}:latest || echo "No previous 'latest' image found"
+          docker pull ${DOCKER_NAME}:${DOCKER_TAG} || echo "No previous '${DOCKER_TAG}' image found"
+          docker build \
+            --cache-from=${DOCKER_NAME}-builder:${DOCKER_TAG} \
+            --cache-from=${DOCKER_NAME}-test:${DOCKER_TAG} \
+            --cache-from=${DOCKER_NAME}:latest \
+            --cache-from=${DOCKER_NAME}:${DOCKER_TAG} \
+            -t ${DOCKER_NAME}:${DOCKER_TAG} \
+            .
+
+      - name: Push the Docker image
+        run: |
+          docker push ${DOCKER_NAME}:${DOCKER_TAG}

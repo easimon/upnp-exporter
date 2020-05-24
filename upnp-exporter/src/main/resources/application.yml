@@ -1,0 +1,57 @@
+micronaut:
+  application:
+    name: upnp-exporter
+
+  server:
+    port: ${upnp.server-port}
+
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: ${upnp.prometheus-step-interval}
+        descriptions: true
+
+    binders:
+      web:
+        enabled: false
+      files:
+        enabled: false
+      logback:
+        enabled: false
+      processor:
+        enabled: false
+      uptime:
+        enabled: false
+      jvm:
+        enabled: false
+
+  caches:
+    upnp-requests:
+      expire-after-write: ${upnp.action-cache-interval}
+    upnp-descriptions:
+      expire-after-write: ${upnp.description-cache-interval}
+
+jackson:
+  # module-scan initiated in ApplicationConfiguration AFTER registering correctly configured Kotlin Module
+  # Otherwise, NULL handling is not as required
+  module-scan: false
+
+endpoints:
+  metrics:
+    enabled: false
+  prometheus:
+    enabled: true
+    sensitive: false
+
+upnp:
+  server-port: 19133 # stolen from fritzbox exporter + 10000
+  action-cache-interval: 5s
+  description-cache-interval: 15m
+  prometheus-step-interval: PT30S
+  blacklist:
+    devices:
+      - "urn:myharmony-com:device:harmony:1"
+    services:
+      - "urn:myharmony-com:device:harmony:1"
