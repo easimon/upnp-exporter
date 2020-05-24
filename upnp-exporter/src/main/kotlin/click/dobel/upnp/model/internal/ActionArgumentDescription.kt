@@ -14,7 +14,8 @@ data class ActionArgumentDescription(
   val dataType = relatedStateVariable.dataType
   val isNumeric = relatedStateVariable.dataType.isNumeric
   val isBoolean = relatedStateVariable.dataType.isBoolean
-  val isNumberConvertible = isNumeric || isBoolean
+  val isEnum = relatedStateVariable.dataType.isString && relatedStateVariable.allowedValueList.isNotEmpty()
+  val isNumberConvertible = isNumeric || isBoolean || isEnum
   val displayName = relatedStateVariable.name
   val defaultValue = relatedStateVariable.defaultValue
 }

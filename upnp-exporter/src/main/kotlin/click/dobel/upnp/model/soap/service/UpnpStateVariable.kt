@@ -7,5 +7,6 @@ data class UpnpStateVariable(
   val sendEvents: UpnpSendEvents,
   val name: String,
   val dataType: UpnpStateVariableDataType,
-  val defaultValue: String?
+  val defaultValue: String = "",
+  val allowedValueList: List<String> = emptyList()
 )

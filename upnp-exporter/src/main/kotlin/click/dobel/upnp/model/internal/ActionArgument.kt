@@ -6,24 +6,30 @@ data class ActionArgument(
 ) {
 
   fun asDouble(): Double {
-    return if (description.isBoolean) {
-      if (asBoolean()) 1.0 else 0.0
-    } else if (!description.isNumeric) {
-      Double.NaN
-    } else if (value.isNullOrEmpty()) {
-      stringToDouble(description.defaultValue)
-    } else {
-      value.toDoubleOrNull() ?: Double.NaN
+    return when {
+      description.isBoolean -> booleanAsDouble()
+      description.isNumeric -> numberAsDouble()
+      description.isEnum -> enumIndexAsDouble()
+      else -> Double.NaN
     }
   }
 
+  fun booleanAsDouble() = if (asBoolean()) 1.0 else 0.0
+  fun enumIndexAsDouble() = asEnumIndex().toDouble()
+  fun equalsEnumValueAsDouble(str: String) = if (equalsEnumValue(str)) 1.0 else 0.0
+  fun numberAsDouble() = stringToDouble(valueOrDefault)
+
+  fun equalsEnumValue(str: String) = str == valueOrDefault
+
   fun asBoolean(): Boolean {
-    if (!description.isBoolean) {
-      return false
-    } else if (value.isNullOrEmpty()) {
-      return stringToBoolean(description.defaultValue)
+    return description.isBoolean && stringToBoolean(valueOrDefault)
+  }
+
+  fun asEnumIndex(): Int {
+    return when {
+      description.isEnum -> description.relatedStateVariable.allowedValueList.indexOf(valueOrDefault)
+      else -> -2
     }
-    return stringToBoolean(value)
   }
 
   private fun stringToBoolean(str: String?): Boolean =
@@ -36,7 +42,9 @@ data class ActionArgument(
   private fun stringToDouble(str: String?): Double =
     str?.toDoubleOrNull() ?: Double.NaN
 
+  private val valueOrDefault: String = if (!value.isNullOrBlank()) value else description.defaultValue
+
   override fun toString(): String {
-    return value
+    return valueOrDefault
   }
 }

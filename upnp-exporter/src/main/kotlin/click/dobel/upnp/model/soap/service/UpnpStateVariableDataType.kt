@@ -66,5 +66,8 @@ enum class UpnpStateVariableDataType(
 
   @get:JsonIgnore
   val isBoolean = Boolean::class.java == this.javaType
+
+  @get:JsonIgnore
+  val isString = String::class.java == this.javaType
 }
 

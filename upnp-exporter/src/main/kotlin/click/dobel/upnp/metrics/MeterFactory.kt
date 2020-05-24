@@ -64,7 +64,9 @@ class MeterFactory(
     numericOutArguments
       .forEach { argumentDescription ->
         val gaugeName = gaugeName(action, argumentDescription)
-        val gaugeTags = serviceTags(action.service).and(deviceTags(action.service.device))
+        val gaugeTags = serviceTags(action.service)
+          .and(deviceTags(action.service.device))
+          .and(argumentTags(argumentDescription))
 
         val probeResult = createArgumentGetter(argumentDescription)(action)
         if (probeResult.isNaN()) {
@@ -76,6 +78,17 @@ class MeterFactory(
             argumentDescription.displayName
           )
         } else {
+          if (argumentDescription.isEnum) {
+            argumentDescription.relatedStateVariable.allowedValueList.forEach { allowedValue ->
+              registerGauge(
+                name = "$gaugeName.state",
+                tags = gaugeTags.and(Tag.of("state", allowedValue)),
+                item = action,
+                getter = createArgumentGetter(argumentDescription) { it.equalsEnumValueAsDouble(allowedValue) }
+              )
+            }
+          }
+
           registerGauge(
             name = gaugeName,
             tags = gaugeTags,
@@ -86,7 +99,10 @@ class MeterFactory(
       }
   }
 
-  private fun createArgumentGetter(argumentDescription: ActionArgumentDescription): ((Action) -> Double) =
+  private fun createArgumentGetter(
+    argumentDescription: ActionArgumentDescription,
+    argumentConversion: ((ActionArgument) -> Double) = { it.asDouble() }
+  ): ((Action) -> Double) =
     { action ->
       val request = UpnpRequest(action.service.controlUrl, action.service.serviceType, action.name)
       val response = soapClient.executeSoapActionBlocking(request)
@@ -101,7 +117,7 @@ class MeterFactory(
           errorCounter.increment()
           Double.NaN
         } else {
-          ActionArgument(argumentDescription, value).asDouble()
+          argumentConversion(ActionArgument(argumentDescription, value))
         }
       }
     }
@@ -152,5 +168,8 @@ class MeterFactory(
       Tag.of("device_description_url", device.descriptionUrl.path),
       Tag.of("udn", device.udn)
     )
+
+    private fun argumentTags(argumentDescription: ActionArgumentDescription) =
+      Tag.of("type", argumentDescription.dataType.asString)
   }
 }
