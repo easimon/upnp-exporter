@@ -17,7 +17,7 @@ micronaut:
       web:
         enabled: false
       files:
-        enabled: false
+        enabled: true
       logback:
         enabled: false
       processor:
@@ -25,7 +25,7 @@ micronaut:
       uptime:
         enabled: false
       jvm:
-        enabled: false
+        enabled: true
 
   caches:
     upnp-requests:
